@@ -1,4 +1,3 @@
-
 name: Build JJ Player APK
 
 on:
@@ -39,16 +38,63 @@ jobs:
           python -m pip install --upgrade pip
           pip install buildozer cython==0.29.36
 
-      - name: Fix Android minimum API
+      - name: Set Android minimum API
+        shell: bash
         run: |
           if grep -q '^android.minapi' buildozer.spec; then
             sed -i 's/^android.minapi.*/android.minapi = 24/' buildozer.spec
           else
             sed -i '/^\[app\]/a android.minapi = 24' buildozer.spec
           fi
+          grep '^android.minapi' buildozer.spec
 
-      - name: Build APK
-        run: buildozer -v android debug
+      - name: Build APK and apply CPython fix if needed
+        shell: bash
+        run: |
+          set +e
+          buildozer -v android debug 2>&1 | tee build-first.log
+          first_status=${PIPESTATUS[0]}
+
+          if [ "$first_status" -eq 0 ]; then
+            exit 0
+          fi
+
+          if ! grep -Eq 'preadv|pwritev' build-first.log; then
+            echo "Build failed for a different reason; see build-first.log"
+            exit "$first_status"
+          fi
+
+          echo "Applying Android CPython header fix..."
+
+          mapfile -t files < <(
+            find .buildozer -type f \
+              -path '*/python3/Python/remote_debugging.c'
+          )
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "Could not locate CPython remote_debugging.c"
+            exit "$first_status"
+          fi
+
+          for file in "${files[@]}"; do
+            if ! grep -q '#include <sys/uio.h>' "$file"; then
+              sed -i '1i#include <sys/uio.h>' "$file"
+            fi
+          done
+
+          buildozer -v android debug 2>&1 | tee build-retry.log
+          retry_status=${PIPESTATUS[0]}
+          exit "$retry_status"
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: JJ-Player-build-logs
+          path: |
+            build-first.log
+            build-retry.log
+          if-no-files-found: warn
 
       - name: Upload APK
         if: success()
