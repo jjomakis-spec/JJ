@@ -1,0 +1,70 @@
+name: Build JJ Player APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "main.py"
+      - "buildozer.spec"
+      - ".github/workflows/build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Check project files
+        run: |
+          echo "Repository root: $GITHUB_WORKSPACE"
+          ls -la
+          test -f main.py || { echo "ERROR: main.py is missing from repository root"; exit 1; }
+          test -f buildozer.spec || { echo "ERROR: buildozer.spec is missing from repository root"; exit 1; }
+          grep -n "android.accept_sdk_license" buildozer.spec || true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev build-essential ccache libltdl-dev
+          python -m pip install --upgrade pip
+          pip install buildozer cython==0.29.36
+
+      - name: Build APK with full log
+        shell: bash
+        run: |
+          set -o pipefail
+          buildozer -v android debug 2>&1 | tee build.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: JJ-Player-build-log
+          path: build.log
+          if-no-files-found: warn
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: JJ-Player-APK
+          path: bin/*.apk
+          if-no-files-found: error
