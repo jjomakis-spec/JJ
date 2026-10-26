@@ -1,4 +1,5 @@
 [app]
+android.accept_sdk_license = True
 # JJ Player Android build configuration
 # Build from this directory with: buildozer android debug
 
