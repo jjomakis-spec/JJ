@@ -1,36 +1,66 @@
-[app]
-android.accept_sdk_license = True
-# JJ Player Android build configuration
-# Build from this directory with: buildozer android debug
+import kivy
+kivy.require('2.0.0')
 
-title = JJ Player
-package.name = jjplayer
-package.domain = gr.jjmusic
-version = 23.2
-source.dir = .
-source.include_exts = py,kv,png,jpg,jpeg,atlas,nml,json
-source.exclude_dirs = .git,.github,bin,.buildozer
+from kivy.lang import Builder
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.app import App
+from kivy.properties import ObjectProperty, StringProperty
+from kivy.uix.button import Button
+from kivy.uix.bubble import Bubble
 
-# Kivy UI and Android Java bridge for MediaPlayer
-requirements = python3,kivy,pyjnius
+KV = '''
+Controller:
+    label_wid: my_custom_label
+    info: 'Hello world'
 
-orientation = landscape
-fullscreen = 0
+    BoxLayout:
+        orientation: 'horizontal'
+        padding: 20
 
-# Android versions and device architecture
-android.api = 35
-android.minapi = 23
-android.ndk = 25b
-android.ndk_api = 23
-android.archs = arm64-v8a
+        Button:
+            text: 'My controller info is: ' + root.info
+            on_press: root.do_action()
 
-# Required for audio files and local Traktor collection files
-android.permissions = READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,READ_MEDIA_AUDIO,MANAGE_EXTERNAL_STORAGE
-android.allow_backup = True
-android.private_storage = False
+        Label:
+            id: my_custom_label
+            text: 'My label before button press'
+'''
 
-# Build metadata
+class Controller(FloatLayout):
+    # label_wid = ObjectProperty()
+    info = StringProperty()
+    isShow = True
+    def do_action(self, label):
+        if(self.isShow):
+            self.ids.box.remove_widget(label)
+            self.isShow = False
+        else:
+            self.ids.box.add_widget(label)
+            self.isShow = True
+        # label.text = 'test label'
+        # self.label_wid.text = 'My label after button press'
+        self.info = 'New info text'
 
-[buildozer]
-log_level = 2
-warn_on_root = 1
+
+
+class ControllerApp(App):
+    def build(self):
+        layout = Bubble()
+        layout.add_widget(Button(text='Hello 1'))
+        layout.add_widget(Button(text='World 1'))
+        # layout.add_widget(Button(text='aaa', size_hint_x=None, width=300))
+        # layout.add_widget(Button(text='World 2'))
+        # layout.add_widget(Button(text='World 2'))
+        # layout.add_widget(Button(text='World 2'))
+        # layout.add_widget(Button(text='World 2'))
+        # layout.add_widget(Button(text='World 2'))
+        # layout.add_widget(Button(text='World 2'))
+        # layout.add_widget(Button(text='World 2'))
+        return layout
+        # return Controller(info='Hello world')
+        # return Builder.load_string(KV)
+
+
+if __name__ == '__main__':
+    ControllerApp().run()
